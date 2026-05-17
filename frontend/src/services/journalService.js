@@ -1,8 +1,12 @@
 import { request } from "./api";
 
 export const journalService = {
-  getAll: async () => {
-    return request("/journals");
+  getAll: async (page = 1, limit = 10, filters = {}) => {
+    let url = `/journals?page=${page}&limit=${limit}`;
+    if (filters.search) url += `&search=${encodeURIComponent(filters.search)}`;
+    if (filters.marketSentiment) url += `&marketSentiment=${encodeURIComponent(filters.marketSentiment)}`;
+    if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
+    return request(url);
   },
 
   create: async (journalData) => {

@@ -1,4 +1,9 @@
 const User = require('../models/User');
+const Decision = require('../models/Decision');
+const Journal = require('../models/Journal');
+const Learning = require('../models/Learning');
+const Strategy = require('../models/Strategy');
+const Watchlist = require('../models/Watchlist');
 const jwt = require('jsonwebtoken');
 
 const { sendSuccess, sendError } = require('../utils/apiResponse');
@@ -109,8 +114,33 @@ const getUserProfile = async (req, res) => {
   }
 };
 
+// @desc    Clear all user data
+// @route   DELETE /api/auth/clear
+// @access  Private
+const clearUserData = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Delete records from all user collections
+    await Journal.deleteMany({ user: userId });
+    await Decision.deleteMany({ user: userId });
+    await Strategy.deleteMany({ user: userId });
+    await Learning.deleteMany({ user: userId });
+    await Watchlist.deleteMany({ user: userId });
+
+    sendSuccess(res, {
+      message: 'All of your personal data has been completely cleared successfully!',
+      data: {}
+    });
+  } catch (error) {
+    console.error('Clear user data error:', error.message);
+    sendError(res, { message: 'Server error during data purge' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getUserProfile,
+  clearUserData,
 };

@@ -5,6 +5,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard/Dashboard";
 import DailyJournal from "./components/DailyJournal/DailyJournal";
 import DecisionLog from "./components/DecisionLog/DecisionLog";
+import Strategies from "./components/Strategies/Strategies";
 import SignIn from "./components/Auth/SignIn";
 import SignUp from "./components/Auth/SignUp";
 import ToastContainer from "./components/Toast/ToastContainer";
@@ -15,6 +16,7 @@ import {
 } from "./store/index.js";
 import { journalService } from "./services/journalService";
 import { decisionService } from "./services/decisionService";
+import { strategyService } from "./services/strategyService";
 import { useToast } from "./hooks/useToast";
 
 export default function App() {
@@ -28,6 +30,7 @@ export default function App() {
 
   const [journals, setJournals] = useState([]);
   const [decisions, setDecisions] = useState([]);
+  const [strategies, setStrategies] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = (token, username) => {
@@ -73,13 +76,15 @@ export default function App() {
       const fetchData = async () => {
         setLoading(true);
         try {
-          const journalRes = await journalService.getAll();
-          const decisionRes = await decisionService.getAll();
+          const journalRes = await journalService.getAll(1, 200);
+          const decisionRes = await decisionService.getAll(1, 200);
+          const strategyRes = await strategyService.getAll(1, 200);
           setJournals(journalRes.data || []);
           setDecisions(decisionRes.data || []);
+          setStrategies(strategyRes.data || []);
         } catch (err) {
           console.error("Error loading workspace data from Database:", err);
-          toast.error("Failed to load your portfolio journals or decisions.");
+          toast.error("Failed to load your portfolio journals, decisions, or strategies.");
         } finally {
           setLoading(false);
         }
@@ -88,6 +93,7 @@ export default function App() {
     } else {
       setJournals([]);
       setDecisions([]);
+      setStrategies([]);
     }
   }, [isAuthenticated]);
 
@@ -170,7 +176,27 @@ export default function App() {
           element={
             isAuthenticated ? (
               <Layout theme={theme} toggleTheme={toggleTheme} onLogout={handleLogout}>
-                <DecisionLog decisions={decisions} setDecisions={setDecisions} />
+                <DecisionLog
+                  decisions={decisions}
+                  setDecisions={setDecisions}
+                  strategies={strategies}
+                />
+              </Layout>
+            ) : (
+              <Navigate to="/signin" replace />
+            )
+          }
+        />
+        <Route
+          path="/strategies"
+          element={
+            isAuthenticated ? (
+              <Layout theme={theme} toggleTheme={toggleTheme} onLogout={handleLogout}>
+                <Strategies
+                  strategies={strategies}
+                  setStrategies={setStrategies}
+                  decisions={decisions}
+                />
               </Layout>
             ) : (
               <Navigate to="/signin" replace />

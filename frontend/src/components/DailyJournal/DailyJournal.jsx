@@ -9,17 +9,74 @@ import {
   PlusCircle,
   Trash2,
   Edit2,
+  Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { journalService } from "../../services/journalService";
 import { useToast } from "../../hooks/useToast";
 import ConfirmDialog from "../shared/ConfirmDialog";
 
-export default function DailyJournal({ journals, setJournals }) {
+export default function DailyJournal({
+  journals: globalJournals,
+  setJournals: setGlobalJournals,
+}) {
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, date }
   const toast = useToast();
+
+  // Search, Filters & Pagination States
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterSentiment, setFilterSentiment] = useState("all");
+  const [filterTag, setFilterTag] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5); // 5 per page for rich textual logs
+
+  // Local paginated records
+  const [localJournals, setLocalJournals] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchJournals = async () => {
+    setListLoading(true);
+    try {
+      const response = await journalService.getAll(currentPage, itemsPerPage, {
+        search: searchTerm,
+        marketSentiment: filterSentiment,
+        tag: filterTag,
+      });
+      setLocalJournals(response.data || []);
+      if (response.pagination) {
+        setTotalItems(response.pagination.totalResults || 0);
+        setTotalPages(response.pagination.totalPages || 1);
+      } else {
+        setTotalItems((response.data || []).length);
+        setTotalPages(1);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to retrieve paginated journal logs.");
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  // Reset page to 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterSentiment, filterTag, itemsPerPage]);
+
+  // Fetch data when active page or itemsPerPage changes, or filter resets
+  useEffect(() => {
+    fetchJournals();
+    const mainContainer = document.querySelector("main");
+    if (mainContainer) {
+      mainContainer.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentPage, itemsPerPage, searchTerm, filterSentiment, filterTag]);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -92,13 +149,15 @@ export default function DailyJournal({ journals, setJournals }) {
 
       if (editingId) {
         const response = await journalService.update(editingId, payload);
-        setJournals(
-          journals.map((j) => ((j._id || j.id) === editingId ? response.data : j))
+        setGlobalJournals(
+          globalJournals.map((j) =>
+            (j._id || j.id) === editingId ? response.data : j,
+          ),
         );
         toast.success("Journal entry updated successfully in Database!");
       } else {
         const response = await journalService.create(payload);
-        setJournals([response.data, ...journals]);
+        setGlobalJournals([response.data, ...globalJournals]);
         toast.success("Journal entry logged successfully to Database!");
       }
 
@@ -113,6 +172,13 @@ export default function DailyJournal({ journals, setJournals }) {
         tag: "Discipline",
         biases: [],
       });
+      // Re-fetch paginated data
+      if (currentPage === 1) {
+        fetchJournals();
+      } else {
+        setCurrentPage(1);
+      }
+      return;
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Failed to log journal entry.");
@@ -130,13 +196,18 @@ export default function DailyJournal({ journals, setJournals }) {
     setConfirmDelete(null);
     try {
       await journalService.delete(id);
-      setJournals(journals.filter((j) => (j._id || j.id) !== id));
+      setGlobalJournals(globalJournals.filter((j) => (j._id || j.id) !== id));
       toast.success("Journal entry removed successfully!");
+      fetchJournals();
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Failed to delete journal entry.");
     }
   };
+
+  // Calculate pagination boundaries
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(totalItems, startIndex + localJournals.length);
 
   return (
     <div className="flex flex-col gap-6 h-full animate-fade-in">
@@ -173,7 +244,9 @@ export default function DailyJournal({ journals, setJournals }) {
         <div className="glass-card p-6 md:p-8 w-full animate-slide-up">
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-surface-border">
             <h2 className="font-semibold text-lg text-on-heading font-sora">
-              {editingId ? "Edit Psychological Audit" : "New Psychological Audit"}
+              {editingId
+                ? "Edit Psychological Audit"
+                : "New Psychological Audit"}
             </h2>
             <button
               onClick={handleCancel}
@@ -229,8 +302,8 @@ export default function DailyJournal({ journals, setJournals }) {
                     {formData.stressLevel > 7
                       ? "High Stress (Alert)"
                       : formData.stressLevel > 4
-                      ? "Moderate Stress"
-                      : "Optimal Calm"}
+                        ? "Moderate Stress"
+                        : "Optimal Calm"}
                   </span>
                 </div>
 
@@ -257,8 +330,8 @@ export default function DailyJournal({ journals, setJournals }) {
                     {formData.focusLevel > 7
                       ? "Laser Focused"
                       : formData.focusLevel > 4
-                      ? "Moderate Focus"
-                      : "Distracted / Fatigued"}
+                        ? "Moderate Focus"
+                        : "Distracted / Fatigued"}
                   </span>
                 </div>
               </div>
@@ -371,18 +444,73 @@ export default function DailyJournal({ journals, setJournals }) {
                 disabled={loading}
                 className="btn-primary py-2.5 px-8 text-xs font-semibold uppercase tracking-wider min-w-[150px] cursor-pointer"
               >
-                {loading ? "Saving..." : editingId ? "Save Updates" : "Publish Audit Log"}
+                {loading
+                  ? "Saving..."
+                  : editingId
+                    ? "Save Updates"
+                    : "Publish Audit Log"}
               </button>
             </div>
           </form>
         </div>
       )}
 
+      {/* Search & Filters Panel */}
+      <div className="glass-card p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-surface-low/30 animate-fade-in">
+        <span className="text-xs font-semibold text-on-heading tracking-wider uppercase font-mono">
+          Introspective Audit Logs ({totalItems} / {globalJournals.length})
+        </span>
+
+        {/* Filter elements */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search bar */}
+          <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-on-variant"
+              size={13}
+            />
+            <input
+              type="text"
+              placeholder="Search thoughts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-56 bg-surface-low border border-surface-border/60 hover:border-surface-border focus:border-accent-indigo text-xs text-on-surface rounded-lg pl-9 pr-4 py-1.5 focus:outline-none transition-all placeholder:text-on-variant"
+            />
+          </div>
+
+          {/* Sentiment Filter */}
+          <select
+            value={filterSentiment}
+            onChange={(e) => setFilterSentiment(e.target.value)}
+            className="bg-surface-low border border-surface-border/60 hover:border-surface-border focus:border-accent-indigo text-xs text-on-surface rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer transition-all font-mono"
+          >
+            <option value="all">All Sentiments</option>
+            <option value="greed">🟢 Greed</option>
+            <option value="neutral">⚪ Neutral</option>
+            <option value="fear">🔴 Fear</option>
+          </select>
+
+          {/* Tag Filter */}
+          <select
+            value={filterTag}
+            onChange={(e) => setFilterTag(e.target.value)}
+            className="bg-surface-low border border-surface-border/60 hover:border-surface-border focus:border-accent-indigo text-xs text-on-surface rounded-lg px-2.5 py-1.5 focus:outline-none cursor-pointer transition-all font-mono"
+          >
+            <option value="all">All Tags</option>
+            <option value="Discipline">Discipline</option>
+            <option value="Calm">Calm</option>
+            <option value="Greed">Greed State</option>
+            <option value="Fear">Fear State</option>
+          </select>
+        </div>
+      </div>
+
       {/* Main Journal Feeds */}
       <div className="flex flex-col gap-4">
-        {journals.map((journal) => {
+        {localJournals.map((journal) => {
           const currentId = journal._id || journal.id;
-          const currentTag = journal.tags && journal.tags[0] ? journal.tags[0] : "Discipline";
+          const currentTag =
+            journal.tags && journal.tags[0] ? journal.tags[0] : "Discipline";
 
           return (
             <div
@@ -393,10 +521,10 @@ export default function DailyJournal({ journals, setJournals }) {
                   currentTag === "Discipline"
                     ? "#10B981"
                     : currentTag === "Greed"
-                    ? "#F59E0B"
-                    : currentTag === "Fear"
-                    ? "#EF4444"
-                    : "#6366F1",
+                      ? "#F59E0B"
+                      : currentTag === "Fear"
+                        ? "#EF4444"
+                        : "#6366F1",
               }}
             >
               {/* Actions panel absolutely positioned on hover */}
@@ -406,49 +534,60 @@ export default function DailyJournal({ journals, setJournals }) {
                   className="text-on-variant hover:text-accent-indigo p-1.5 hover:bg-surface-low rounded cursor-pointer transition-colors"
                   title="Edit Journal Entry"
                 >
-                  <Edit2 size={13} />
+                  <Edit2 size={14} />
                 </button>
                 <button
                   onClick={() => requestDelete(currentId, journal.date)}
                   className="text-on-variant hover:text-fear p-1.5 hover:bg-surface-low rounded cursor-pointer transition-colors"
-                  title="Delete Journal Entry"
+                  title="Delete Entry"
                 >
-                  <Trash2 size={13} />
+                  <Trash2 size={14} />
                 </button>
               </div>
 
-              <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-                {/* Side Meta Column */}
-                <div className="w-full lg:w-48 shrink-0 flex flex-col gap-3 border-b lg:border-b-0 lg:border-r border-surface-border/40 pb-4 lg:pb-0 lg:pr-6">
-                  <div className="flex items-center gap-2 text-on-variant">
-                    <Calendar size={14} />
-                    <span className="text-xs font-mono font-medium">
+              <div className="flex flex-col md:flex-row gap-6 md:items-start">
+                {/* Meta Column */}
+                <div className="flex flex-row md:flex-col justify-between md:justify-start items-center md:items-start gap-4 md:gap-5 pb-4 md:pb-0 border-b md:border-b-0 md:border-r border-surface-border/40 md:pr-6 md:w-44 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={15} className="text-accent-indigo" />
+                    <span className="font-mono text-xs font-semibold text-on-heading">
                       {journal.date}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap lg:flex-col lg:items-start">
-                    <span
-                      className={`badge badge-${currentTag.toLowerCase()} border border-current/10`}
-                    >
-                      {currentTag}
-                    </span>
-                    <span className="text-[11px] text-on-variant">
-                      Sentiment:{" "}
-                      <span className="text-on-heading font-medium capitalize">
-                        {journal.marketSentiment}
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] text-on-variant uppercase tracking-wider">
+                        Market Mood
                       </span>
-                    </span>
+                      <span
+                        className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5 ${
+                          journal.marketSentiment === "greed"
+                            ? "text-[#f59e0b]"
+                            : journal.marketSentiment === "fear"
+                              ? "text-[#ef4444]"
+                              : "text-on-heading"
+                        }`}
+                      >
+                        {journal.marketSentiment === "greed"
+                          ? "🐂 Greed"
+                          : journal.marketSentiment === "fear"
+                            ? "🐻 Fear"
+                            : "⚖️ Neutral"}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex gap-4 mt-1">
+                  <div className="flex gap-4 md:w-full">
                     <div className="flex flex-col">
                       <span className="text-[9px] text-on-variant uppercase tracking-wider">
                         Stress
                       </span>
                       <span
                         className={`text-sm font-semibold ${
-                          journal.stressLevel > 6 ? "text-fear" : "text-on-heading"
+                          journal.stressLevel > 6
+                            ? "text-fear"
+                            : "text-on-heading"
                         }`}
                       >
                         {journal.stressLevel}/10
@@ -460,7 +599,9 @@ export default function DailyJournal({ journals, setJournals }) {
                       </span>
                       <span
                         className={`text-sm font-semibold ${
-                          journal.focusLevel > 7 ? "text-discipline" : "text-on-heading"
+                          journal.focusLevel > 7
+                            ? "text-discipline"
+                            : "text-on-heading"
                         }`}
                       >
                         {journal.focusLevel}/10
@@ -475,28 +616,109 @@ export default function DailyJournal({ journals, setJournals }) {
                     "{journal.thoughts}"
                   </div>
 
-                  {journal.biasesChecked && journal.biasesChecked.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-auto">
-                      <span className="text-[10px] font-medium text-on-variant uppercase self-center mr-2">
-                        Aligned Defenses:
-                      </span>
-                      {journal.biasesChecked.map((bias, i) => (
-                        <div
-                          key={i}
-                          className="bg-accent-indigo/5 border border-accent-indigo/10 text-accent-indigo rounded-[4px] px-2.5 py-0.5 text-[11px] font-medium"
-                        >
-                          {bias}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {journal.biasesChecked &&
+                    journal.biasesChecked.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-auto">
+                        <span className="text-[10px] font-medium text-on-variant uppercase self-center mr-2">
+                          Aligned Defenses:
+                        </span>
+                        {journal.biasesChecked.map((bias, i) => (
+                          <div
+                            key={i}
+                            className="bg-accent-indigo/5 border border-accent-indigo/10 text-accent-indigo rounded-[4px] px-2.5 py-0.5 text-[11px] font-medium"
+                          >
+                            {bias}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
               </div>
             </div>
           );
         })}
 
-        {journals.length === 0 && (
+        {/* Premium Pagination controls banner */}
+        {totalPages > 1 && (
+          <div className="glass-card p-4 flex flex-col sm:flex-row items-center justify-between gap-4 bg-surface-low/10 mt-2">
+            <span className="text-xs text-on-variant font-mono">
+              Showing {startIndex + 1}-{endIndex} of {totalItems} Logs
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-surface-border/60 hover:bg-surface text-on-surface disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-all flex items-center justify-center"
+              >
+                <ChevronLeft size={13} />
+              </button>
+
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const pageNum = idx + 1;
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  Math.abs(pageNum - currentPage) <= 1
+                ) {
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-7 h-7 text-xs font-mono font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                        currentPage === pageNum
+                          ? "bg-accent-indigo text-white shadow-md shadow-accent-indigo/20 border border-accent-indigo"
+                          : "border border-surface-border/60 hover:bg-surface text-on-surface"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                } else if (pageNum === 2 || pageNum === totalPages - 1) {
+                  return (
+                    <span
+                      key={pageNum}
+                      className="text-on-variant text-xs px-1 select-none font-mono"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+                return null;
+              })}
+
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-surface-border/60 hover:bg-surface text-on-surface disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-all flex items-center justify-center"
+              >
+                <ChevronRight size={13} />
+              </button>
+            </div>
+
+            {/* Items Per Page Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-on-variant font-mono">
+                Per Page:
+              </span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(parseInt(e.target.value))}
+                className="bg-surface-low border border-surface-border/60 text-xs text-on-surface rounded-lg px-2 py-1 focus:outline-none cursor-pointer"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Case 1: Database entirely empty */}
+        {globalJournals.length === 0 && (
           <div className="glass-card p-12 flex flex-col items-center justify-center text-center text-on-variant/50 border-dashed">
             <BookOpen size={40} className="mb-4 opacity-30" />
             <h3 className="font-semibold text-on-heading text-base mb-1">
@@ -510,6 +732,30 @@ export default function DailyJournal({ journals, setJournals }) {
               className="btn-secondary py-2 text-xs cursor-pointer"
             >
               Add First Log
+            </button>
+          </div>
+        )}
+
+        {/* Case 2: Matching results empty due to search/filters */}
+        {globalJournals.length > 0 && localJournals.length === 0 && (
+          <div className="glass-card p-12 flex flex-col items-center justify-center text-center text-on-variant/50 animate-fade-in">
+            <Search size={40} className="mb-4 opacity-30" />
+            <h3 className="font-semibold text-on-heading text-base mb-1">
+              No matching journal entries
+            </h3>
+            <p className="text-sm mb-4 max-w-xs">
+              No written records matched your search term or chosen sentiment
+              filter tags.
+            </p>
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setFilterSentiment("all");
+                setFilterTag("all");
+              }}
+              className="btn-secondary py-2 px-6 text-xs uppercase tracking-wide font-semibold cursor-pointer animate-fade-in"
+            >
+              Clear Search Filters
             </button>
           </div>
         )}

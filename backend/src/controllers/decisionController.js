@@ -6,15 +6,40 @@ const { sendSuccess, sendError } = require('../utils/apiResponse');
 // @access  Private
 const getDecisions = async (req, res) => {
   try {
-    // Standard pagination parameters
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
 
-    const totalResults = await Decision.countDocuments({ user: req.user._id });
+    const filter = { user: req.user._id };
+
+    // 1. Search term: match asset symbol or rationale description
+    if (req.query.search) {
+      filter.$or = [
+        { asset: { $regex: req.query.search, $options: 'i' } },
+        { rationale: { $regex: req.query.search, $options: 'i' } },
+      ];
+    }
+
+    // 2. Strategy Filter
+    if (req.query.strategy && req.query.strategy !== 'all') {
+      filter.strategy = req.query.strategy;
+    }
+
+    // 3. Outcome / Result Filter
+    if (req.query.result && req.query.result !== 'all') {
+      filter.result = req.query.result;
+    }
+
+    // 4. Discipline Filter
+    if (req.query.discipline && req.query.discipline !== 'all') {
+      filter.sentimentTag = req.query.discipline;
+    }
+
+    const totalResults = await Decision.countDocuments(filter);
     const totalPages = Math.ceil(totalResults / limit);
 
-    const decisions = await Decision.find({ user: req.user._id })
+    const decisions = await Decision.find(filter)
+      .populate('strategy')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -40,7 +65,7 @@ const getDecisions = async (req, res) => {
 // @access  Private
 const createDecision = async (req, res) => {
   try {
-    const { date, asset, horizon, rationale, conviction, result, sentimentTag, metrics } = req.body;
+    const { date, asset, horizon, rationale, conviction, result, sentimentTag, metrics, strategy } = req.body;
 
     const newDecision = await Decision.create({
       user: req.user._id,
@@ -52,6 +77,7 @@ const createDecision = async (req, res) => {
       result,
       sentimentTag,
       metrics,
+      strategy: strategy || null,
     });
 
     sendSuccess(res, {
@@ -70,7 +96,7 @@ const createDecision = async (req, res) => {
 // @access  Private
 const updateDecision = async (req, res) => {
   try {
-    const { date, asset, horizon, rationale, conviction, sentimentTag, metrics } = req.body;
+    const { date, asset, horizon, rationale, conviction, sentimentTag, metrics, strategy } = req.body;
 
     const decision = await Decision.findById(req.params.id);
 
@@ -90,6 +116,7 @@ const updateDecision = async (req, res) => {
     if (conviction !== undefined) decision.conviction = conviction;
     if (sentimentTag !== undefined) decision.sentimentTag = sentimentTag;
     if (metrics !== undefined) decision.metrics = metrics;
+    if (strategy !== undefined) decision.strategy = strategy || null;
 
     const updatedDecision = await decision.save();
 

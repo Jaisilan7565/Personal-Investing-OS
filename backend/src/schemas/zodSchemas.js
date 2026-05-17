@@ -33,6 +33,7 @@ const decisionSchema = z.object({
     entry: z.string().default('Market'),
     stop: z.string().min(3, 'Stop loss/invalidation criteria must be at least 3 characters long'),
   }),
+  strategy: z.string().nullable().optional(),
 });
 
 const watchlistSchema = z.object({
@@ -45,6 +46,15 @@ const learningSchema = z.object({
   status: z.enum(['todo', 'in_progress', 'mastered']).default('todo'),
 });
 
+const strategySchema = z.object({
+  name: z.string().min(2, 'Strategy name must be at least 2 characters'),
+  description: z.string().optional().default(''),
+  entryRules: z.string().min(5, 'Entry rules must be at least 5 characters'),
+  exitRules: z.string().min(5, 'Exit rules must be at least 5 characters'),
+  stopLossRules: z.string().min(5, 'Stop loss rules must be at least 5 characters'),
+  riskProfile: z.string().optional().default('1% of Capital'),
+});
+
 module.exports = {
   registerSchema,
   loginSchema,
@@ -52,4 +62,5 @@ module.exports = {
   decisionSchema,
   watchlistSchema,
   learningSchema,
+  strategySchema,
 };
