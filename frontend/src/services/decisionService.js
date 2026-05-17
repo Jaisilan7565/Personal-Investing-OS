@@ -1,8 +1,13 @@
 import { request } from "./api";
 
 export const decisionService = {
-  getAll: async () => {
-    return request("/decisions");
+  getAll: async (page = 1, limit = 10, filters = {}) => {
+    let url = `/decisions?page=${page}&limit=${limit}`;
+    if (filters.search) url += `&search=${encodeURIComponent(filters.search)}`;
+    if (filters.strategy) url += `&strategy=${encodeURIComponent(filters.strategy)}`;
+    if (filters.result) url += `&result=${encodeURIComponent(filters.result)}`;
+    if (filters.discipline) url += `&discipline=${encodeURIComponent(filters.discipline)}`;
+    return request(url);
   },
 
   create: async (decisionData) => {

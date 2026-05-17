@@ -51,6 +51,11 @@ const DecisionSchema = new mongoose.Schema(
         required: [true, 'Please define your stop loss/invalidation criteria'],
       },
     },
+    strategy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Strategy',
+      default: null,
+    },
   },
   { timestamps: true }
 );

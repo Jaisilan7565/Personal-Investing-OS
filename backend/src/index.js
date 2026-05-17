@@ -43,6 +43,7 @@ app.use('/api/v1/watchlist', require('./routes/watchlistRoutes'));
 app.use('/api/v1/learning', require('./routes/learningRoutes'));
 app.use('/api/v1/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/v1/ai', require('./routes/aiRoutes'));
+app.use('/api/v1/strategies', require('./routes/strategyRoutes'));
 
 // 404 Route handler
 app.use((req, res, next) => {

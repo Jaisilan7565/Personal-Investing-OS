@@ -227,11 +227,11 @@ export default function Dashboard({
             </div>
           </div>
 
-          {/* 3. Recent Thesis Logs (High Fidelity Table) */}
+          {/* 3. Recent Trade Logs (High Fidelity Table) */}
           <div className="glass-card flex flex-col">
             <div className="flex justify-between items-center px-5 py-4 border-b border-surface-border">
               <h3 className="text-xs font-semibold text-on-heading font-sora tracking-wide">
-                Recent Thesis Logs
+                Recent Trade Logs
               </h3>
               <button
                 onClick={() => setActiveTab("decisions")}
@@ -369,8 +369,7 @@ export default function Dashboard({
               onClick={() => setActiveTab("decisions")}
               className="w-full py-2.5 rounded-[6px] border border-surface-border hover:bg-surface-high text-on-surface text-[11px] font-bold flex items-center justify-center gap-2 tracking-wide transition-all"
             >
-              <FilePlus size={14} className="text-on-variant" /> New Decision
-              Thesis
+              <FilePlus size={14} className="text-on-variant" /> New Trade Log
             </button>
           </div>
 

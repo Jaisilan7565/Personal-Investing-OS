@@ -14,4 +14,10 @@ export const authService = {
       body: JSON.stringify({ username, email, password }),
     });
   },
+
+  clearAllData: async () => {
+    return request("/auth/clear", {
+      method: "DELETE",
+    });
+  },
 };

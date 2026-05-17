@@ -6,15 +6,31 @@ const { sendSuccess, sendError } = require('../utils/apiResponse');
 // @access  Private
 const getJournals = async (req, res) => {
   try {
-    // Standard pagination parameters
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
 
-    const totalResults = await Journal.countDocuments({ user: req.user._id });
+    const filter = { user: req.user._id };
+
+    // 1. Search term: match introspective thoughts
+    if (req.query.search) {
+      filter.thoughts = { $regex: req.query.search, $options: 'i' };
+    }
+
+    // 2. Sentiment Filter
+    if (req.query.marketSentiment && req.query.marketSentiment !== 'all') {
+      filter.marketSentiment = req.query.marketSentiment.toLowerCase();
+    }
+
+    // 3. Tag Filter
+    if (req.query.tag && req.query.tag !== 'all') {
+      filter.tags = req.query.tag;
+    }
+
+    const totalResults = await Journal.countDocuments(filter);
     const totalPages = Math.ceil(totalResults / limit);
 
-    const journals = await Journal.find({ user: req.user._id })
+    const journals = await Journal.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
