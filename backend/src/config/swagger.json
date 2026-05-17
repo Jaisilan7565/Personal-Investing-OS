@@ -1,0 +1,619 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Personal Investing OS API",
+    "description": "Comprehensive interactive API documentation for the Personal Investing OS MERN application. Serves systematic trade thesis auditing, psychological journaling logs, watchlist monitoring, learning curricula trackers, server-side charting analytics, and Google Gemini AI behavioral mentoring guidance.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api/v1",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter the JWT token obtained from registration or login to access protected endpoints. Example: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`"
+      }
+    },
+    "schemas": {
+      "StandardResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Operation completed successfully"
+          }
+        }
+      },
+      "PaginationMetadata": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "example": 1 },
+          "limit": { "type": "integer", "example": 10 },
+          "totalPages": { "type": "integer", "example": 4 },
+          "totalResults": { "type": "integer", "example": 37 }
+        }
+      },
+      "RegisterInput": {
+        "type": "object",
+        "required": ["username", "email", "password"],
+        "properties": {
+          "username": { "type": "string", "minLength": 3, "example": "jay_invests" },
+          "email": { "type": "string", "format": "email", "example": "jay@example.com" },
+          "password": { "type": "string", "minLength": 6, "example": "SuperSecure123" }
+        }
+      },
+      "LoginInput": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "jay@example.com" },
+          "password": { "type": "string", "example": "SuperSecure123" }
+        }
+      },
+      "JournalInput": {
+        "type": "object",
+        "required": ["date", "marketSentiment", "stressLevel", "focusLevel", "thoughts"],
+        "properties": {
+          "date": { "type": "string", "format": "date", "example": "2026-05-17" },
+          "marketSentiment": { "type": "string", "enum": ["fear", "neutral", "greed"], "example": "greed" },
+          "stressLevel": { "type": "integer", "minimum": 1, "maximum": 10, "example": 4 },
+          "focusLevel": { "type": "integer", "minimum": 1, "maximum": 10, "example": 8 },
+          "thoughts": { "type": "string", "example": "Market is flying today on tech earnings. Feeling FOMO but forced myself to wait for my validation rules." },
+          "tags": { "type": "array", "items": { "type": "string" }, "example": ["FOMO", "Tech Earnings"] },
+          "biasesChecked": { "type": "array", "items": { "type": "string" }, "example": ["FOMO", "Herd Mentality"] }
+        }
+      },
+      "DecisionInput": {
+        "type": "object",
+        "required": ["date", "asset", "horizon", "rationale", "conviction", "metrics"],
+        "properties": {
+          "date": { "type": "string", "format": "date", "example": "2026-05-17" },
+          "asset": { "type": "string", "example": "NVDA" },
+          "horizon": { "type": "string", "example": "Short-Term Swings" },
+          "rationale": { "type": "string", "example": "Support bounce at EMA50 on heavy daily volume following clean earnings update." },
+          "conviction": { "type": "integer", "minimum": 1, "maximum": 10, "example": 7 },
+          "result": { "type": "string", "enum": ["Pending", "Winner", "Loser"], "example": "Pending" },
+          "sentimentTag": { "type": "string", "example": "Systematic Setup" },
+          "metrics": {
+            "type": "object",
+            "required": ["stop"],
+            "properties": {
+              "entry": { "type": "string", "example": "$850 limit" },
+              "stop": { "type": "string", "example": "Close below $820 daily invalidation support" }
+            }
+          }
+        }
+      },
+      "WatchlistInput": {
+        "type": "object",
+        "required": ["symbol"],
+        "properties": {
+          "symbol": { "type": "string", "example": "MSFT" },
+          "notes": { "type": "string", "example": "Observe consolidation near historical high resistance point." }
+        }
+      },
+      "LearningInput": {
+        "type": "object",
+        "required": ["topic", "status"],
+        "properties": {
+          "topic": { "type": "string", "example": "Technical Analysis" },
+          "status": { "type": "string", "enum": ["todo", "in_progress", "mastered"], "example": "in_progress" }
+        }
+      },
+      "AiInput": {
+        "type": "object",
+        "properties": {
+          "prompt": { "type": "string", "example": "Explain why I feel FOMO when seeing high volume breakouts." }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user account",
+        "description": "Registers a new user inside the database, hashes the password, and issues a standard JWT token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "_id": { "type": "string", "example": "6646874ebf7a8b417c823021" },
+                            "username": { "type": "string", "example": "jay_invests" },
+                            "email": { "type": "string", "example": "jay@example.com" },
+                            "token": { "type": "string", "example": "eyJhbGciOiJIUz..." }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid input parameters, unique email violation, or length requirement failure" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "User Login Authentication",
+        "description": "Verifies email and password credentials and returns a secure JWT bearer token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "_id": { "type": "string", "example": "6646874ebf7a8b417c823021" },
+                            "username": { "type": "string", "example": "jay_invests" },
+                            "email": { "type": "string", "example": "jay@example.com" },
+                            "token": { "type": "string", "example": "eyJhbGciOiJIUz..." }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "description": "Invalid credentials provided" }
+        }
+      }
+    },
+    "/auth/profile": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get authenticated user profile details",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Profile data retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "_id": { "type": "string", "example": "6646874ebf7a8b417c823021" },
+                            "username": { "type": "string", "example": "jay_invests" },
+                            "email": { "type": "string", "example": "jay@example.com" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "description": "Authorization token missing or invalid signature" }
+        }
+      }
+    },
+    "/journals": {
+      "get": {
+        "tags": ["Psychological Journals"],
+        "summary": "List user journals with pagination",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "description": "Page number (defaults to 1)", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "description": "Size limit per page (defaults to 10)", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Journals retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_id": { "type": "string", "example": "6646b9eb9a..." },
+                              "user": { "type": "string", "example": "6646874ebf..." },
+                              "date": { "type": "string", "example": "2026-05-17" },
+                              "marketSentiment": { "type": "string", "example": "greed" },
+                              "stressLevel": { "type": "integer", "example": 3 },
+                              "focusLevel": { "type": "integer", "example": 8 },
+                              "thoughts": { "type": "string", "example": "Introspective log..." },
+                              "tags": { "type": "array", "items": { "type": "string" } },
+                              "biasesChecked": { "type": "array", "items": { "type": "string" } }
+                            }
+                          }
+                        },
+                        "pagination": { "$ref": "#/components/schemas/PaginationMetadata" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Psychological Journals"],
+        "summary": "Log a new daily psychological audit",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/JournalInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Journal added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "type": "object" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/journals/{id}": {
+      "delete": {
+        "tags": ["Psychological Journals"],
+        "summary": "Remove a journal entry",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "MongoDB Object ID of the journal", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted successfully" },
+          "404": { "description": "Journal not found" }
+        }
+      }
+    },
+    "/decisions": {
+      "get": {
+        "tags": ["Systematic Decisions (Anti-Impulse)"],
+        "summary": "List investment decisions with pagination",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "description": "Page number (defaults to 1)", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "description": "Size limit per page (defaults to 10)", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decisions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "type": "array", "items": { "type": "object" } },
+                        "pagination": { "$ref": "#/components/schemas/PaginationMetadata" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Systematic Decisions (Anti-Impulse)"],
+        "summary": "Log a systematic trading setup thesis",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DecisionInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Decision logged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": { "data": { "type": "object" } }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decisions/{id}": {
+      "put": {
+        "tags": ["Systematic Decisions (Anti-Impulse)"],
+        "summary": "Resolve decision outcome status",
+        "description": "Assigns trade results as Winner, Loser, or Pending to update decision statistics.",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["result"],
+                "properties": {
+                  "result": { "type": "string", "enum": ["Winner", "Loser", "Pending"], "example": "Winner" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Resolved successfully" }
+        }
+      },
+      "delete": {
+        "tags": ["Systematic Decisions (Anti-Impulse)"],
+        "summary": "Remove logged decision",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Removed successfully" }
+        }
+      }
+    },
+    "/watchlist": {
+      "get": {
+        "tags": ["Observation Watchlist"],
+        "summary": "List tracked assets",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Watchlist retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": { "data": { "type": "array", "items": { "type": "object" } } }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Observation Watchlist"],
+        "summary": "Add a new stock ticker under observation",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WatchlistInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Symbol added" }
+        }
+      }
+    },
+    "/watchlist/{id}": {
+      "delete": {
+        "tags": ["Observation Watchlist"],
+        "summary": "Stop monitoring a stock ticker",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Removed successfully" }
+        }
+      }
+    },
+    "/learning": {
+      "get": {
+        "tags": ["Curriculum Progress Tracking"],
+        "summary": "Retrieve educational curriculum progress",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Curriculum progress loaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": { "data": { "type": "array", "items": { "type": "object" } } }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Curriculum Progress Tracking"],
+        "summary": "Log progress state for standard modules",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LearningInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status updated successfully" }
+        }
+      }
+    },
+    "/analytics": {
+      "get": {
+        "tags": ["Psychological & Quality Analytics"],
+        "summary": "Calculate compiled server-side metrics and statistics",
+        "description": "Returns compiled dashboard variables for client charting (emotion split percentages, discipline score timeline, bias counts, conviction metrics, win-rates).",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Analytics calculated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "emotionMetrics": { "type": "object" },
+                            "disciplineTrend": { "type": "array", "items": { "type": "object" } },
+                            "learningStats": { "type": "object" },
+                            "decisionStats": { "type": "object" },
+                            "resistedBiasesRanked": { "type": "array", "items": { "type": "object" } }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/mentor": {
+      "post": {
+        "tags": ["Introspective AI Mentor"],
+        "summary": "Consult behavioral coach AI",
+        "description": "Generates tailored feedback reviewing your emotional journal entries and setup conviction levels. Uses Google Gemini API (or rule-based system engine if key is offline). Strictly formatted to never give investment/financial advice.",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AiInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AI feedback resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/StandardResponse" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "feedback": { "type": "string", "example": "AI feedback summary..." }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
