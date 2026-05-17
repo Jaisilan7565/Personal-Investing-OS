@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+echo ""
+echo "========================================"
+echo "  PRE-PUSH LINT CHECK GATE"
+echo "========================================"
+
+echo ""
+echo "🔍 Running ESLint on Frontend..."
+cd frontend
+npm run lint
+cd ..
+
+echo ""
+echo "🔍 Running ESLint on Backend..."
+cd backend
+npm run lint
+cd ..
+
+echo ""
+echo "✅ All local lint checks passed. Proceeding to push..."
+echo ""
