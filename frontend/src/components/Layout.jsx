@@ -14,17 +14,42 @@ import {
   Sun,
   LogOut,
   Target,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  VolumeX,
+  Music,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { strategyService } from "../services/strategyService";
 import { decisionService } from "../services/decisionService";
 import { journalService } from "../services/journalService";
 import { authService } from "../services/authService";
 import { useToast } from "../hooks/useToast";
+import { useAudioPlayer } from "../context/AudioPlayerContext";
 
 export default function Layout({ children, theme, toggleTheme, onLogout }) {
+  const {
+    activeLesson,
+    currentSlide,
+    setCurrentSlide,
+    isPlaying,
+    isMuted,
+    speechActive,
+    handleNextSlide,
+    handlePrevSlide,
+    togglePlay,
+    toggleMute,
+    closePlayer
+  } = useAudioPlayer();
+
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [seeding, setSeeding] = React.useState(false);
+  const [isMinimized, setIsMinimized] = React.useState(false);
   const toast = useToast();
 
   const handleSeedData = async () => {
@@ -218,7 +243,6 @@ export default function Layout({ children, theme, toggleTheme, onLogout }) {
       id: "learning",
       label: "Learning Tracker",
       icon: GraduationCap,
-      disabled: true,
     },
     { id: "watchlist", label: "Watchlist", icon: Eye, disabled: true },
     { id: "aimentor", label: "AI Mentor", icon: Sparkles, disabled: true },
@@ -471,6 +495,193 @@ export default function Layout({ children, theme, toggleTheme, onLogout }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Global Spotify-like Floating Playtrack bar */}
+      {activeLesson && location.pathname !== "/learning" && (
+        <>
+          {/* Collapsed/Minimized Audio Pill */}
+          {isMinimized ? (
+            <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 md:bottom-8 z-40 bg-surface-low/95 backdrop-blur-md border border-[#6366F1]/40 rounded-full shadow-2xl px-4 py-2.5 flex items-center justify-between gap-4 transition-all duration-300 w-auto max-w-sm md:w-[320px] hover:border-[#6366F1]/70 animate-in slide-in-from-bottom-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="w-7 h-7 rounded-full bg-[#6366F1]/10 border border-[#6366F1]/20 flex items-center justify-center text-[#6366F1] shrink-0">
+                  <GraduationCap size={14} className={isPlaying ? "animate-pulse" : ""} />
+                </div>
+                <span className="text-xs font-bold text-on-heading truncate pr-2">
+                  {activeLesson.topic}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Play/Pause toggle */}
+                <button
+                  onClick={togglePlay}
+                  className="w-7 h-7 bg-[#6366F1]/10 hover:bg-[#6366F1]/20 border border-[#6366F1]/30 text-[#6366F1] rounded-full flex items-center justify-center transition-all cursor-pointer"
+                  title={isPlaying ? "Pause" : "Play"}
+                >
+                  {isPlaying ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" className="ml-0.5" />}
+                </button>
+
+                {/* Expand button */}
+                <button
+                  onClick={() => setIsMinimized(false)}
+                  className="w-7 h-7 bg-surface-lowest hover:bg-surface-low border border-surface-border/80 text-on-heading rounded-full flex items-center justify-center transition-all cursor-pointer"
+                  title="Expand Player"
+                >
+                  <ChevronUp size={14} />
+                </button>
+
+                {/* Dismiss/Close */}
+                <button
+                  onClick={closePlayer}
+                  className="text-on-variant hover:text-on-heading p-1 transition-colors cursor-pointer"
+                  title="Dismiss Player"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 md:bottom-8 z-40 bg-surface-low/95 backdrop-blur-md border border-[#6366F1]/30 rounded-2xl shadow-2xl p-4 flex flex-col gap-3 transition-all duration-300 w-auto max-w-sm md:w-[380px] hover:border-[#6366F1]/60 animate-in slide-in-from-bottom-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#6366F1]/10 border border-[#6366F1]/20 flex items-center justify-center text-[#6366F1] shrink-0">
+                    <GraduationCap size={18} className={isPlaying ? "animate-pulse" : ""} />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] text-[#6366F1] font-bold uppercase tracking-widest font-mono">
+                      ACTIVE AI NARRATOR
+                    </span>
+                    <span className="text-xs font-bold text-on-heading truncate leading-tight mt-0.5">
+                      {activeLesson.topic}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  {speechActive && (
+                    <div className="flex items-center gap-0.5 h-3 px-1.5 py-0.5 bg-green-500/10 rounded-full mr-2">
+                      <div className="w-[2px] h-1.5 bg-green-500 rounded animate-bounce [animation-delay:0.1s]"></div>
+                      <div className="w-[2px] h-2.5 bg-green-500 rounded animate-bounce [animation-delay:0.2s]"></div>
+                      <div className="w-[2px] h-2 bg-green-500 rounded animate-bounce [animation-delay:0.3s]"></div>
+                    </div>
+                  )}
+                  {/* Minimize button */}
+                  <button
+                    onClick={() => setIsMinimized(true)}
+                    className="text-on-variant hover:text-on-heading p-1 transition-colors cursor-pointer mr-1 bg-surface-lowest hover:bg-surface-low border border-surface-border/60 rounded-lg flex items-center justify-center w-6 h-6"
+                    title="Minimize Player"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+
+                  <button
+                    onClick={closePlayer}
+                    className="text-on-variant hover:text-on-heading p-1 transition-colors cursor-pointer"
+                    title="Dismiss Player"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Current Slide Info */}
+              <div className="bg-surface-lowest/50 border border-surface-border/40 p-2.5 rounded-xl flex flex-col gap-1">
+                <span className="text-[9px] font-mono text-on-variant">
+                  SLIDE {currentSlide + 1} OF {activeLesson.contentJson.slides.length}:
+                </span>
+                <p className="text-[11px] font-semibold text-on-heading leading-tight truncate">
+                  {activeLesson.contentJson.slides[currentSlide]?.title}
+                </p>
+              </div>
+
+              {/* Progress Timeline Track Bar */}
+              <div className="w-full flex items-center gap-2">
+                <span className="text-[9px] font-mono text-on-variant">
+                  {currentSlide + 1}
+                </span>
+                <div 
+                  className="flex-1 h-1.5 rounded-full bg-surface-border overflow-hidden cursor-pointer" 
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const width = rect.width;
+                    const ratio = clickX / width;
+                    const totalSlides = activeLesson.contentJson.slides.length;
+                    const targetIndex = Math.min(Math.max(Math.floor(ratio * totalSlides), 0), totalSlides - 1);
+                    setCurrentSlide(targetIndex);
+                  }}
+                >
+                  <div
+                    className="h-full bg-[#6366F1] transition-all duration-300 rounded-full"
+                    style={{
+                      width: `${((currentSlide + 1) / activeLesson.contentJson.slides.length) * 100}%`,
+                    }}
+                  ></div>
+                </div>
+                <span className="text-[9px] font-mono text-on-variant">
+                  {activeLesson.contentJson.slides.length}
+                </span>
+              </div>
+
+              {/* Spotify-style Controller buttons row */}
+              <div className="flex items-center justify-between mt-1 px-1">
+                {/* Mute button */}
+                <button
+                  onClick={toggleMute}
+                  className={`p-1.5 border rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                    isMuted
+                      ? "bg-red-500/10 border-red-500/20 text-red-500"
+                      : "bg-surface-lowest hover:bg-surface-low border-surface-border/80 text-on-heading"
+                  }`}
+                  title={isMuted ? "Unmute" : "Mute"}
+                >
+                  {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                </button>
+
+                <div className="flex items-center gap-3">
+                  {/* Skip Back */}
+                  <button
+                    onClick={handlePrevSlide}
+                    disabled={currentSlide === 0}
+                    className="p-2 bg-surface-lowest hover:bg-surface-low border border-surface-border/80 text-on-heading rounded-full transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
+                    title="Previous Slide"
+                  >
+                    <SkipBack size={14} />
+                  </button>
+
+                  {/* Play / Pause Toggle Circle */}
+                  <button
+                    onClick={togglePlay}
+                    className="w-9 h-9 bg-[#6366F1] hover:bg-[#6366F1]/90 text-white rounded-full flex items-center justify-center transition-all cursor-pointer shadow-lg shadow-indigo-500/20"
+                    title={isPlaying ? "Pause" : "Play"}
+                  >
+                    {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+                  </button>
+
+                  {/* Skip Forward */}
+                  <button
+                    onClick={handleNextSlide}
+                    disabled={currentSlide === activeLesson.contentJson.slides.length - 1}
+                    className="p-2 bg-surface-lowest hover:bg-surface-low border border-surface-border/80 text-on-heading rounded-full transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
+                    title="Next Slide"
+                  >
+                    <SkipForward size={14} />
+                  </button>
+                </div>
+
+                {/* Quick Redirect back to player */}
+                <button
+                  onClick={() => navigate("/learning")}
+                  className="p-1.5 bg-surface-lowest hover:bg-surface-low border border-surface-border/80 text-on-heading rounded-lg transition-all cursor-pointer flex items-center justify-center text-[10px] font-bold uppercase tracking-wider font-mono gap-1"
+                  title="Maximize Player"
+                >
+                  <Music size={14} />
+                  <span className="hidden sm:inline">MAX</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

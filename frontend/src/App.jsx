@@ -6,9 +6,11 @@ import Dashboard from "./components/Dashboard/Dashboard";
 import DailyJournal from "./components/DailyJournal/DailyJournal";
 import DecisionLog from "./components/DecisionLog/DecisionLog";
 import Strategies from "./components/Strategies/Strategies";
+import LearningCenter from "./components/Learning/LearningCenter";
 import SignIn from "./components/Auth/SignIn";
 import SignUp from "./components/Auth/SignUp";
 import ToastContainer from "./components/Toast/ToastContainer";
+import { AudioPlayerProvider } from "./context/AudioPlayerContext";
 import {
   loginSuccess,
   logoutSuccess,
@@ -18,6 +20,7 @@ import { journalService } from "./services/journalService";
 import { decisionService } from "./services/decisionService";
 import { strategyService } from "./services/strategyService";
 import { useToast } from "./hooks/useToast";
+import { useJournals, useDecisions, useStrategies } from "./hooks/useQueries";
 
 export default function App() {
   const dispatch = useDispatch();
@@ -31,7 +34,6 @@ export default function App() {
   const [journals, setJournals] = useState([]);
   const [decisions, setDecisions] = useState([]);
   const [strategies, setStrategies] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   const handleSignIn = (token, username) => {
     dispatch(loginSuccess({ token, username }));
@@ -70,35 +72,40 @@ export default function App() {
     return () => clearTimeout(timeoutId);
   }, [theme]);
 
-  // Fetch real-time DB logs upon authentication
+  // Use TanStack Query hooks for declarative, cached API calling
+  const { data: qJournals, isLoading: isJournalsLoading } = useJournals(1, 200, {}, { enabled: isAuthenticated });
+  const { data: qDecisions, isLoading: isDecisionsLoading } = useDecisions(1, 200, {}, { enabled: isAuthenticated });
+  const { data: qStrategies, isLoading: isStrategiesLoading } = useStrategies(1, 200, { enabled: isAuthenticated });
+
+  // Sync TanStack Query cache with React state for child component compatibility
   useEffect(() => {
-    if (isAuthenticated) {
-      const fetchData = async () => {
-        setLoading(true);
-        try {
-          const journalRes = await journalService.getAll(1, 200);
-          const decisionRes = await decisionService.getAll(1, 200);
-          const strategyRes = await strategyService.getAll(1, 200);
-          setJournals(journalRes.data || []);
-          setDecisions(decisionRes.data || []);
-          setStrategies(strategyRes.data || []);
-        } catch (err) {
-          console.error("Error loading workspace data from Database:", err);
-          toast.error("Failed to load your portfolio journals, decisions, or strategies.");
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchData();
-    } else {
+    if (isAuthenticated && qJournals) {
+      setJournals(qJournals);
+    } else if (!isAuthenticated) {
       setJournals([]);
+    }
+  }, [qJournals, isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && qDecisions) {
+      setDecisions(qDecisions);
+    } else if (!isAuthenticated) {
       setDecisions([]);
+    }
+  }, [qDecisions, isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && qStrategies) {
+      setStrategies(qStrategies);
+    } else if (!isAuthenticated) {
       setStrategies([]);
     }
-  }, [isAuthenticated]);
+  }, [qStrategies, isAuthenticated]);
+
+  const loading = isJournalsLoading || isDecisionsLoading || isStrategiesLoading;
 
   return (
-    <>
+    <AudioPlayerProvider>
       {loading && (
         <div className="fixed inset-0 bg-surface/80 backdrop-blur-md z-50 flex items-center justify-center flex-col gap-3">
           <div className="w-10 h-10 border-4 border-accent-indigo border-t-transparent rounded-full animate-spin"></div>
@@ -203,6 +210,18 @@ export default function App() {
             )
           }
         />
+        <Route
+          path="/learning"
+          element={
+            isAuthenticated ? (
+              <Layout theme={theme} toggleTheme={toggleTheme} onLogout={handleLogout}>
+                <LearningCenter />
+              </Layout>
+            ) : (
+              <Navigate to="/signin" replace />
+            )
+          }
+        />
 
         {/* CATCH-ALL REDIRECT GUARDS */}
         <Route
@@ -212,6 +231,6 @@ export default function App() {
       </Routes>
 
       <ToastContainer />
-    </>
+    </AudioPlayerProvider>
   );
 }

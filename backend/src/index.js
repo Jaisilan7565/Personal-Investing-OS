@@ -17,7 +17,30 @@ connectDB();
 const app = express();
 
 // Middlewares
-app.use(cors());
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim().replace(/^['"]|['"]$/g, ''))
+  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, or Postman)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Auto-allow local development loopbacks (localhost and 127.0.0.1)
+    const isLocal = origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:');
+    
+    if (isLocal || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`Blocked by CORS: Origin ${origin} not in allowed list:`, allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200,
+}));
 app.use(express.json());
 
 const { sendSuccess, sendError } = require('./utils/apiResponse');
